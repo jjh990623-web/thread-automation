@@ -84,7 +84,8 @@ def cmd_run(args) -> int:
 
 
 def cmd_approve(args) -> int:
-    """Slack OK 후 호출 — thread reply 확인, pending 큐에서 꺼내 Threads 게시 + 게시 로그 기록."""
+    """Slack OK 후 호출 — pending 큐에서 꺼내 (모달에서 받은 수정본 적용 후) Threads 게시 + 게시 로그 기록."""
+    edited_text = getattr(args, "edited_text", None)
     print(f"[2/5] cmd_approve 시작: draft_id={args.draft_id[:8]}")
 
     storage = DraftStorage()
@@ -98,17 +99,11 @@ def cmd_approve(args) -> int:
         return 1
     print(f"[2.2] draft 로드 성공: type={draft.type.value}")
 
-    # Slack thread에서 수정된 내용 확인
-    if draft.slack_ts:
-        print(f"[2.3] Slack reply 확인 중... slack_ts={draft.slack_ts}")
-        edited_text = notifier.get_latest_reply(draft.slack_ts)
-        if edited_text:
-            print(f"[info] Slack reply로 수정된 내용 발견, 적용")
-            draft.text = edited_text
-        else:
-            print(f"[info] Slack reply 없음, 원본 내용 사용")
+    if edited_text and edited_text.strip() and edited_text.strip() != draft.text.strip():
+        print(f"[2.3] 모달에서 수정된 본문 적용")
+        draft.text = edited_text.strip()
     else:
-        print(f"[2.3] slack_ts 없음, reply 확인 생략")
+        print(f"[2.3] 원본 본문 사용")
 
     print(f"[3/5] Threads 게시 시작...")
     draft.status = DraftStatus.APPROVED

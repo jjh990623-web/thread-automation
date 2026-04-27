@@ -34,33 +34,6 @@ class SlackNotifier:
         )
         return resp["ts"]
 
-    def get_latest_reply(self, thread_ts: str) -> Optional[str]:
-        """thread의 최신 reply 텍스트를 반환. 수정 내용 확인용."""
-        if self.dry_run or not thread_ts:
-            return None
-        try:
-            resp = self.client.conversations_replies(
-                channel=self.channel,
-                ts=thread_ts,
-                limit=100,
-            )
-            replies = resp.get("messages", [])
-            print(f"[slack] reply 조회: {len(replies)}건 (thread_ts={thread_ts})")
-            # thread 시작 메시지 제외, 최신 reply만
-            if len(replies) > 1:
-                latest = replies[-1]
-                text = latest.get("text", "").strip()
-                print(f"[slack] 최신 reply: {text[:100] if text else '(없음)'}")
-                return text if text else None
-            else:
-                print(f"[slack] reply 없음")
-                return None
-        except Exception as e:
-            import traceback
-            print(f"[err] Slack reply 읽기 실패: {e}")
-            print(traceback.format_exc())
-        return None
-
     def send_published(self, draft: Draft, post_id: Optional[str]) -> None:
         if self.dry_run:
             print(f"[slack] dry-run — {draft.id[:8]} 게시완료 알림 시뮬레이션")
@@ -83,7 +56,7 @@ class SlackNotifier:
              "text": {"type": "mrkdwn", "text": f"```{draft.text}```"}},
             {"type": "actions", "elements": [
                 {"type": "button",
-                 "text": {"type": "plain_text", "text": "OK"},
+                 "text": {"type": "plain_text", "text": "수정/게시"},
                  "style": "primary",
                  "action_id": "approve_draft",
                  "value": draft.id},

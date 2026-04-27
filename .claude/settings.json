@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m src.main run)",
+      "Skill(claude-api)",
+      "Skill(claude-api:*)",
+      "Bash(rm -f data/pending.json data/초안.md data/투고목록.md data/답글목록.md)",
+      "Bash(python -m src.main run --type daily)",
+      "Bash(python -m src.main run --type promo)",
+      "Bash(python -m src.main run --type reply-only)",
+      "Bash(python -m src.main run --type all)"
+    ]
+  }
+}

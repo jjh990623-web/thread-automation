@@ -1,0 +1,35 @@
+# 호지프릭스 — 구조화된 규칙. 말투/페르소나 본문은 brand_tone.md 참고.
+
+brand_name: 호지프릭스
+product: 호지차 티백
+hashtags_pool:
+  - "#호지프릭스"
+  - "#호지차"
+  - "#티백"
+  - "#일상의차"
+  - "#차한잔"
+
+# generator가 system prompt로 그대로 사용할 markdown 파일.
+# 다른 위치에 이미 브랜드 톤 문서가 있다면 그 경로를 가리키면 됩니다.
+brand_tone_path: config/brand_tone.md
+
+# validator 규칙
+banned_phrases:
+  - 지금 구매
+  - 한정 수량
+  - 무조건
+  - 광고
+  - 클릭
+
+promo_keywords:
+  - 호지프릭스
+  - 티백
+  - 구매
+  - 링크
+  - 할인
+
+# 최근 N개 글 윈도우 안에서 promo가 이 횟수를 초과하면 reject
+max_promo_per_window: 2
+
+# Jaccard 유사도 임계치 (0~1) — 이 값 이상이면 중복으로 판단
+similarity_threshold: 0.6

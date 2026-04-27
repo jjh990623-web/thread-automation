@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+data/pending.json
+.obsidian/workspace.json

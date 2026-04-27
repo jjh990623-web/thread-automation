@@ -45,6 +45,8 @@ class ThreadsPublisher:
             data=data,
             timeout=15,
         )
+        if r.status_code >= 400:
+            print(f"[err] Threads API 응답: {r.status_code} {r.text}")
         r.raise_for_status()
         return r.json()["id"]
 

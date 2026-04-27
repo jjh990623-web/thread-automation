@@ -62,9 +62,49 @@ class ThreadsCollector:
         return [self._to_mention(d) for d in r.json().get("data", [])]
 
     def _get_replies(self, since: datetime) -> List[Mention]:
-        # TODO: replies endpoint는 post 단위라 내 최근 글 id 목록 순회 필요.
-        # 1차 스켈레톤에서는 빈 리스트.
-        return []
+        """내 최근 게시물의 답글을 수집."""
+        replies = []
+
+        # 1. 내 최근 게시물 ID 조회
+        url = f"{THREADS_API}/{self.user_id}/threads"
+        params = {
+            "fields": "id,timestamp",
+            "access_token": self.access_token,
+        }
+        try:
+            r = requests.get(url, params=params, timeout=15)
+            r.raise_for_status()
+            posts = r.json().get("data", [])
+        except Exception as e:
+            print(f"[err] 게시물 조회 실패: {e}")
+            return []
+
+        # 2. 각 게시물의 답글 조회
+        for post in posts:
+            post_id = post["id"]
+            post_ts = datetime.fromisoformat(post["timestamp"].replace("Z", "+00:00"))
+
+            # since 이후의 글만 처리
+            if post_ts < since:
+                continue
+
+            url = f"{THREADS_API}/{post_id}/replies"
+            params = {
+                "fields": "id,username,text,timestamp,permalink",
+                "access_token": self.access_token,
+            }
+            try:
+                r = requests.get(url, params=params, timeout=15)
+                r.raise_for_status()
+                for data in r.json().get("data", []):
+                    reply = self._to_mention(data)
+                    reply.parent_post_id = post_id
+                    replies.append(reply)
+            except Exception as e:
+                print(f"[warn] {post_id[:8]} 답글 조회 실패: {e}")
+                continue
+
+        return replies
 
     @staticmethod
     def _to_mention(d: dict) -> Mention:

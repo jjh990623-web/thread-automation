@@ -3,5 +3,7 @@ __pycache__/
 .venv/
 venv/
 .env
+.env.backup
 data/pending.json
+API목록.md
 .obsidian/workspace.json

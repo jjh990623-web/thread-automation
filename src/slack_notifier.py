@@ -45,13 +45,20 @@ class SlackNotifier:
                 limit=100,
             )
             replies = resp.get("messages", [])
+            print(f"[slack] reply 조회: {len(replies)}건 (thread_ts={thread_ts})")
             # thread 시작 메시지 제외, 최신 reply만
             if len(replies) > 1:
                 latest = replies[-1]
                 text = latest.get("text", "").strip()
+                print(f"[slack] 최신 reply: {text[:100] if text else '(없음)'}")
                 return text if text else None
+            else:
+                print(f"[slack] reply 없음")
+                return None
         except Exception as e:
-            print(f"[slack] reply 읽기 실패: {e}")
+            import traceback
+            print(f"[err] Slack reply 읽기 실패: {e}")
+            print(traceback.format_exc())
         return None
 
     def send_published(self, draft: Draft, post_id: Optional[str]) -> None:

@@ -1,0 +1,74 @@
+name: 호지프릭스 Thread SNS 자동화
+
+on:
+  schedule:
+    # 매일 오전 9시 KST (UTC 0시) — daily 글
+    - cron: '0 0 * * *'
+    # 매일 오후 6시 KST (UTC 9시) — promo 글
+    - cron: '0 9 * * *'
+    # 2시간마다 — reply-only (멘션·답글만)
+    - cron: '0 */2 * * *'
+  workflow_dispatch:  # 수동 트리거 용
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python 설정
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: 의존성 설치
+        run: pip install -r requirements.txt
+
+      - name: 스케줄 타입 결정
+        id: schedule
+        run: |
+          HOUR=$(date -u +'%H')
+          if [ "$HOUR" = "00" ]; then
+            echo "type=daily" >> $GITHUB_OUTPUT
+            echo "[scheduler] 09시 KST → daily 글 생성"
+          elif [ "$HOUR" = "09" ]; then
+            echo "type=promo" >> $GITHUB_OUTPUT
+            echo "[scheduler] 18시 KST → promo 글 생성"
+          else
+            echo "type=reply-only" >> $GITHUB_OUTPUT
+            echo "[scheduler] 멘션·답글만 수집"
+          fi
+
+      - name: 파이프라인 실행
+        run: python -m src.main run --type ${{ steps.schedule.outputs.type }}
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_MODEL: claude-sonnet-4-6
+          THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+          THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL: ${{ secrets.SLACK_CHANNEL }}
+          SLACK_SIGNING_SECRET: ${{ secrets.SLACK_SIGNING_SECRET }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+
+      - name: 에러 발생시 Slack 알림
+        if: failure()
+        uses: slackapi/slack-github-action@v1
+        with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK }}
+          payload: |
+            {
+              "text": "⚠️ Thread 자동화 실패",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "GitHub Actions 에러 발생\n*Repository*: ${{ github.repository }}\n*Branch*: ${{ github.ref_name }}\n*Run*: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                  }
+                }
+              ]
+            }

@@ -55,13 +55,23 @@ class DraftStorage:
             return
 
         try:
+            reply_to = None
+            if draft.reply_to:
+                reply_to = {
+                    "id": draft.reply_to.id,
+                    "author_username": draft.reply_to.author_username,
+                    "text": draft.reply_to.text,
+                    "created_at": draft.reply_to.created_at.isoformat(),
+                    "parent_post_id": draft.reply_to.parent_post_id,
+                    "permalink": draft.reply_to.permalink,
+                }
             payload = {
                 "draft_id": draft.id,
                 "type": draft.type.value,
                 "text": draft.text,
                 "created_at": draft.created_at.isoformat(),
                 "slack_ts": draft.slack_ts,
-                "reply_to": draft.reply_to.model_dump() if draft.reply_to else None,
+                "reply_to": reply_to,
                 "status": draft.status.value,
             }
             url = f"{self.supabase_url}/rest/v1/pending"

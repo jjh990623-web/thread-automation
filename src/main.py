@@ -69,14 +69,13 @@ def cmd_run(args) -> int:
             continue
         drafts.append(d)
 
-    # 3) 초안 저장 + Slack 전송 + pending 큐에 등록
+    # 3) Slack 전송 + pending 큐에 등록
     for d in drafts:
-        storage.append_draft(d)
         ts = notifier.send_draft(d)
         if ts:
             d.slack_ts = ts
         storage.save_pending(d)
-        print(f"[ok] {d.type.value}/{d.id[:8]} → 초안.md 저장, Slack 전송")
+        print(f"[ok] {d.type.value}/{d.id[:8]} → Slack 전송, pending 등록")
 
     print(f"\n총 {len(drafts)}건 초안 처리 완료. Slack에서 OK 후 "
           f"`python -m src.main approve <draft_id>` 호출.")

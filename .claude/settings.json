@@ -8,7 +8,10 @@
       "Bash(python -m src.main run --type daily)",
       "Bash(python -m src.main run --type promo)",
       "Bash(python -m src.main run --type reply-only)",
-      "Bash(python -m src.main run --type all)"
+      "Bash(python -m src.main run --type all)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
     ]
   }
 }

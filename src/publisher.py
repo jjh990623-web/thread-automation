@@ -11,7 +11,7 @@ from typing import Optional
 
 import requests
 
-from .models import Draft
+from .models import Draft, PostType
 
 THREADS_API = "https://graph.threads.net/v1.0"
 
@@ -37,6 +37,10 @@ class ThreadsPublisher:
             "text": draft.text,
             "access_token": self.access_token,
         }
+
+        # 답글 타입이면 원글 ID를 reply_to_id로 추가
+        if draft.type == PostType.REPLY and draft.reply_to and draft.reply_to.parent_post_id:
+            data["reply_to_id"] = draft.reply_to.parent_post_id
 
         r = requests.post(
             f"{THREADS_API}/{self.user_id}/threads",

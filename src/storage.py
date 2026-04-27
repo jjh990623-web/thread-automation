@@ -143,6 +143,25 @@ class DraftStorage:
             print(f"[err] pending 조회 실패: {e}")
             return None
 
+    # ── 답글 수집 시간 추적 ──────────────────────────────────
+    def get_last_reply_sync_time(self) -> datetime:
+        """마지막 답글 수집 시간을 반환. 파일이 없으면 24시간 전."""
+        sync_file = self.data_dir / ".last_reply_sync"
+        if sync_file.exists():
+            try:
+                data = json.loads(sync_file.read_text(encoding="utf-8"))
+                return datetime.fromisoformat(data["last_sync"])
+            except Exception as e:
+                print(f"[warn] 답글 수집 시간 읽기 실패: {e}, 24시간 전부터 수집")
+        return datetime.now() - __import__("datetime").timedelta(hours=24)
+
+    def save_last_reply_sync_time(self, timestamp: datetime) -> None:
+        """현재 답글 수집 시간을 저장."""
+        sync_file = self.data_dir / ".last_reply_sync"
+        data = {"last_sync": timestamp.isoformat()}
+        sync_file.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+        print(f"[db] 답글 수집 시간 저장: {timestamp.isoformat()}")
+
     # ── 내부 유틸 ────────────────────────────────────────────
     @staticmethod
     def _row_to_draft(row: dict) -> Draft:

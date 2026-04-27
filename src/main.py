@@ -45,7 +45,7 @@ def cmd_run(args) -> int:
     drafts: list[Draft] = []
 
     # 1) 멘션·답글 → 답글 초안 (--type 무관, 항상 처리)
-    since = datetime.now() - timedelta(hours=24)
+    since = storage.get_last_reply_sync_time()
     for mention in collector.fetch_mentions(since):
         d = generator.generate_reply(mention)
         ok, reason = validator.validate(d, recent)
@@ -76,6 +76,9 @@ def cmd_run(args) -> int:
             d.slack_ts = ts
         storage.save_pending(d)
         print(f"[ok] {d.type.value}/{d.id[:8]} → Slack 전송, pending 등록")
+
+    # 답글 수집 시간 업데이트 (다음 실행 때 중복 방지)
+    storage.save_last_reply_sync_time(datetime.now())
 
     print(f"\n총 {len(drafts)}건 초안 처리 완료. Slack에서 OK 후 "
           f"`python -m src.main approve <draft_id>` 호출.")

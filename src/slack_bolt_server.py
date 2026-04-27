@@ -15,19 +15,25 @@ def handle_approve_button(ack, body, logger):
     """OK 버튼 클릭 처리."""
     ack()
     draft_id = body["actions"][0]["value"]
-    logger.info(f"approve_draft clicked: {draft_id}")
+    logger.info(f"[1/5] approve_draft 클릭됨: {draft_id}")
 
     # approve 실행
     try:
         from argparse import Namespace
+        logger.info(f"[2/5] cmd_approve 함수 호출 시작")
+
         args = Namespace(draft_id=draft_id)
         result = cmd_approve(args)
+
+        logger.info(f"[5/5] cmd_approve 결과: {result}")
         if result == 0:
             logger.info(f"✅ 게시 완료: {draft_id}")
         else:
-            logger.error(f"❌ 게시 실패: {draft_id}")
+            logger.error(f"❌ 게시 실패 (code={result}): {draft_id}")
     except Exception as e:
-        logger.error(f"❌ 에러: {e}")
+        import traceback
+        logger.error(f"❌ 에러 발생: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
 
 
 @app.action("reject_draft")

@@ -33,7 +33,6 @@ class ThreadsPublisher:
 
     def _create_container(self, draft: Draft) -> str:
         params = {
-            "media_type": "TEXT",
             "text": draft.text,
             "access_token": self.access_token,
         }

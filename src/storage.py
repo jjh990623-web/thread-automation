@@ -99,8 +99,9 @@ class DraftStorage:
                 "Authorization": f"Bearer {self.supabase_key}",
             }
             # 조회
-            url = f"{self.supabase_url}/rest/v1/pending?draft_id=eq.{draft_id}"
-            resp = requests.get(url, headers=headers, timeout=10)
+            url = f"{self.supabase_url}/rest/v1/pending"
+            params = {"draft_id": f"eq.{draft_id}"}
+            resp = requests.get(url, headers=headers, params=params, timeout=10)
             resp.raise_for_status()
             data = resp.json()
             if not data:
@@ -110,9 +111,8 @@ class DraftStorage:
             draft = self._row_to_draft(data[0])
 
             # 삭제
-            url = f"{self.supabase_url}/rest/v1/pending?draft_id=eq.{draft_id}"
             headers["Prefer"] = "return=minimal"
-            resp = requests.delete(url, headers=headers, timeout=10)
+            resp = requests.delete(url, headers=headers, params=params, timeout=10)
             resp.raise_for_status()
             print(f"[db] pending 제거: {draft_id[:8]}")
 
@@ -131,8 +131,9 @@ class DraftStorage:
                 "apikey": self.supabase_key,
                 "Authorization": f"Bearer {self.supabase_key}",
             }
-            url = f"{self.supabase_url}/rest/v1/pending?draft_id=eq.{draft_id}"
-            resp = requests.get(url, headers=headers, timeout=10)
+            url = f"{self.supabase_url}/rest/v1/pending"
+            params = {"draft_id": f"eq.{draft_id}"}
+            resp = requests.get(url, headers=headers, params=params, timeout=10)
             resp.raise_for_status()
             data = resp.json()
             if not data:

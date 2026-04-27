@@ -20,7 +20,7 @@
 
 import argparse
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from dotenv import load_dotenv
 
@@ -78,7 +78,7 @@ def cmd_run(args) -> int:
         print(f"[ok] {d.type.value}/{d.id[:8]} → Slack 전송, pending 등록")
 
     # 답글 수집 시간 업데이트 (다음 실행 때 중복 방지)
-    storage.save_last_reply_sync_time(datetime.now())
+    storage.save_last_reply_sync_time(datetime.now(timezone.utc))
 
     print(f"\n총 {len(drafts)}건 초안 처리 완료. Slack에서 OK 후 "
           f"`python -m src.main approve <draft_id>` 호출.")

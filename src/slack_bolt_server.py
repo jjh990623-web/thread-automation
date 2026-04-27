@@ -13,19 +13,14 @@ app = App(token=os.getenv("SLACK_BOT_TOKEN"), signing_secret=os.getenv("SLACK_SI
 
 @app.action("approve_draft")
 def handle_approve_button(ack, body, client, logger):
-    """수정/게시 버튼 클릭 → 본문 편집 모달 오픈."""
+    """수정/게시 버튼 클릭 → 본문 편집 모달 오픈 (trigger_id 3초 제한)."""
     ack()
     draft_id = body["actions"][0]["value"]
     trigger_id = body["trigger_id"]
     logger.info(f"approve_draft 클릭됨: {draft_id}")
 
-    storage = DraftStorage()
-    draft = storage.get_pending(draft_id)
-    if draft is None:
-        logger.error(f"pending에 {draft_id} 없음")
-        return
-
     try:
+        # trigger_id는 3초만 유효하므로, DB 조회 없이 빠르게 모달 오픈
         client.views_open(
             trigger_id=trigger_id,
             view={
@@ -44,7 +39,7 @@ def handle_approve_button(ack, body, client, logger):
                             "type": "plain_text_input",
                             "action_id": "edited_text",
                             "multiline": True,
-                            "initial_value": draft.text,
+                            "placeholder": {"type": "plain_text", "text": "로드 중..."},
                         },
                     }
                 ],
@@ -57,12 +52,19 @@ def handle_approve_button(ack, body, client, logger):
 
 
 @app.view("approve_modal")
-def handle_approve_submission(ack, view, logger):
+def handle_approve_submission(ack, view, client, logger):
     """모달 제출 → 수정된 본문으로 게시."""
     ack()
     draft_id = view["private_metadata"]
     edited_text = view["state"]["values"]["text_block"]["edited_text"]["value"]
     logger.info(f"approve_modal 제출됨: {draft_id}")
+
+    # 모달이 열렸을 때는 draft 내용을 로드하지 않았으므로, 여기서 로드
+    storage = DraftStorage()
+    draft = storage.get_pending(draft_id)
+    if draft is None:
+        logger.error(f"pending에 {draft_id} 없음")
+        return
 
     try:
         from argparse import Namespace

@@ -75,6 +75,7 @@ class ThreadsCollector:
             r = requests.get(url, params=params, timeout=15)
             r.raise_for_status()
             posts = r.json().get("data", [])
+            print(f"[collector] 게시물 조회: {len(posts)}건")
         except Exception as e:
             print(f"[err] 게시물 조회 실패: {e}")
             return []
@@ -83,11 +84,14 @@ class ThreadsCollector:
         for post in posts:
             post_id = post["id"]
             post_ts = datetime.fromisoformat(post["timestamp"].replace("Z", "+00:00"))
+            print(f"[collector] 게시물 {post_id[:8]} — {post_ts} (since={since})")
 
             # since 이후의 글만 처리
             if post_ts < since:
+                print(f"[collector]  → since 이전, 스킵")
                 continue
 
+            print(f"[collector]  → 답글 조회 중...")
             url = f"{THREADS_API}/{post_id}/replies"
             params = {
                 "fields": "id,username,text,timestamp,permalink",
@@ -96,7 +100,9 @@ class ThreadsCollector:
             try:
                 r = requests.get(url, params=params, timeout=15)
                 r.raise_for_status()
-                for data in r.json().get("data", []):
+                reply_data = r.json().get("data", [])
+                print(f"[collector]  → 답글 {len(reply_data)}건")
+                for data in reply_data:
                     reply = self._to_mention(data)
                     reply.parent_post_id = post_id
                     replies.append(reply)

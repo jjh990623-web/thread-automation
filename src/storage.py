@@ -2,7 +2,7 @@
 
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional
 
@@ -145,7 +145,8 @@ class DraftStorage:
 
     # ── 답글 수집 시간 추적 ──────────────────────────────────
     def get_last_reply_sync_time(self) -> datetime:
-        """마지막 답글 수집 시간을 반환. 파일이 없으면 24시간 전."""
+        """마지막 답글 수집 시간을 반환. 파일이 없으면 24시간 전. (UTC timezone-aware)"""
+        from datetime import timedelta
         sync_file = self.data_dir / ".last_reply_sync"
         if sync_file.exists():
             try:
@@ -153,7 +154,7 @@ class DraftStorage:
                 return datetime.fromisoformat(data["last_sync"])
             except Exception as e:
                 print(f"[warn] 답글 수집 시간 읽기 실패: {e}, 24시간 전부터 수집")
-        return datetime.now() - __import__("datetime").timedelta(hours=24)
+        return datetime.now(timezone.utc) - timedelta(hours=24)
 
     def save_last_reply_sync_time(self, timestamp: datetime) -> None:
         """현재 답글 수집 시간을 저장."""

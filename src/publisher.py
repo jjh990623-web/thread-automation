@@ -33,17 +33,16 @@ class ThreadsPublisher:
 
     def _create_container(self, draft: Draft) -> str:
         data = {
+            "media_type": "TEXT",
             "text": draft.text,
+            "access_token": self.access_token,
         }
         if draft.reply_to:
             data["reply_to_id"] = draft.reply_to.id
 
-        params = {"access_token": self.access_token}
-
         r = requests.post(
             f"{THREADS_API}/{self.user_id}/threads",
-            json=data,
-            params=params,
+            data=data,
             timeout=15,
         )
         r.raise_for_status()
@@ -52,8 +51,10 @@ class ThreadsPublisher:
     def _publish_container(self, creation_id: str) -> str:
         r = requests.post(
             f"{THREADS_API}/{self.user_id}/threads_publish",
-            json={"creation_id": creation_id},
-            params={"access_token": self.access_token},
+            data={
+                "creation_id": creation_id,
+                "access_token": self.access_token,
+            },
             timeout=15,
         )
         r.raise_for_status()

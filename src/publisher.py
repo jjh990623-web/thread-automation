@@ -37,8 +37,6 @@ class ThreadsPublisher:
             "text": draft.text,
             "access_token": self.access_token,
         }
-        if draft.reply_to:
-            data["reply_to_id"] = draft.reply_to.id
 
         r = requests.post(
             f"{THREADS_API}/{self.user_id}/threads",

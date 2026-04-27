@@ -46,8 +46,7 @@ class ThreadsPublisher:
             timeout=15,
         )
         if r.status_code >= 400:
-            print(f"[err] Threads API 응답: {r.status_code} {r.text}")
-        r.raise_for_status()
+            raise RuntimeError(f"Threads API {r.status_code}: {r.text}")
         return r.json()["id"]
 
     def _publish_container(self, creation_id: str) -> str:

@@ -1,15 +1,12 @@
-"""파일 기반 저장소.
-
-  data/초안.md          모든 초안의 타임로그
-  data/투고목록.md       승인·게시된 일상/홍보글
-  data/답글목록.md       승인·게시된 답글
-  data/pending.json     Slack 승인 대기 중인 draft (id → Draft JSON)
-"""
+"""저장소: Supabase REST API (pending) + 파일 (로그)."""
 
 import json
+import os
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import List, Optional
+
+import requests
 
 from .models import Draft, PostType
 
@@ -18,13 +15,17 @@ DATA_DIR = Path("data")
 DRAFT_FILE = "초안.md"
 POSTS_FILE = "투고목록.md"
 REPLIES_FILE = "답글목록.md"
-PENDING_FILE = "pending.json"
 
 
 class DraftStorage:
     def __init__(self, data_dir: Path = DATA_DIR):
         self.data_dir = Path(data_dir)
         self.data_dir.mkdir(parents=True, exist_ok=True)
+
+        # Supabase REST API 설정
+        self.supabase_url = os.getenv("SUPABASE_URL")
+        self.supabase_key = os.getenv("SUPABASE_KEY")
+        self.has_supabase = bool(self.supabase_url and self.supabase_key)
 
     # ── 초안 로그 ────────────────────────────────────────────
     def append_draft(self, draft: Draft) -> None:
@@ -48,31 +49,117 @@ class DraftStorage:
 
     # ── 승인 대기 큐 (Slack 인터랙션용) ──────────────────────
     def save_pending(self, draft: Draft) -> None:
-        pending = self._load_pending()
-        pending[draft.id] = draft.model_dump(mode="json")
-        self._write_pending(pending)
+        """Supabase pending 테이블에 저장 (REST API)."""
+        if not self.has_supabase:
+            print("[warn] Supabase 미연결, pending 저장 생략")
+            return
+
+        try:
+            payload = {
+                "draft_id": draft.id,
+                "type": draft.type.value,
+                "text": draft.text,
+                "created_at": draft.created_at.isoformat(),
+                "slack_ts": draft.slack_ts,
+                "reply_to": draft.reply_to.model_dump() if draft.reply_to else None,
+                "status": draft.status.value,
+            }
+            url = f"{self.supabase_url}/rest/v1/pending"
+            headers = {
+                "apikey": self.supabase_key,
+                "Authorization": f"Bearer {self.supabase_key}",
+                "Content-Type": "application/json",
+                "Prefer": "return=minimal",
+            }
+            resp = requests.post(url, json=payload, headers=headers, timeout=10)
+            resp.raise_for_status()
+            print(f"[db] pending 저장: {draft.id[:8]}")
+        except Exception as e:
+            print(f"[err] pending 저장 실패: {e}")
 
     def pop_pending(self, draft_id: str) -> Optional[Draft]:
-        pending = self._load_pending()
-        raw = pending.pop(draft_id, None)
-        self._write_pending(pending)
-        return Draft(**raw) if raw else None
+        """Supabase에서 조회 후 삭제 (REST API)."""
+        if not self.has_supabase:
+            print("[warn] Supabase 미연결, pending 조회 생략")
+            return None
+
+        try:
+            headers = {
+                "apikey": self.supabase_key,
+                "Authorization": f"Bearer {self.supabase_key}",
+            }
+            # 조회
+            url = f"{self.supabase_url}/rest/v1/pending?draft_id=eq.{draft_id}"
+            resp = requests.get(url, headers=headers, timeout=10)
+            resp.raise_for_status()
+            data = resp.json()
+            if not data:
+                print(f"[err] pending에 {draft_id[:8]} 없음")
+                return None
+
+            draft = self._row_to_draft(data[0])
+
+            # 삭제
+            url = f"{self.supabase_url}/rest/v1/pending?draft_id=eq.{draft_id}"
+            headers["Prefer"] = "return=minimal"
+            resp = requests.delete(url, headers=headers, timeout=10)
+            resp.raise_for_status()
+            print(f"[db] pending 제거: {draft_id[:8]}")
+
+            return draft
+        except Exception as e:
+            print(f"[err] pending 조회/삭제 실패: {e}")
+            return None
 
     def get_pending(self, draft_id: str) -> Optional[Draft]:
-        raw = self._load_pending().get(draft_id)
-        return Draft(**raw) if raw else None
+        """Supabase에서 조회만 (삭제 없음) - REST API."""
+        if not self.has_supabase:
+            return None
+
+        try:
+            headers = {
+                "apikey": self.supabase_key,
+                "Authorization": f"Bearer {self.supabase_key}",
+            }
+            url = f"{self.supabase_url}/rest/v1/pending?draft_id=eq.{draft_id}"
+            resp = requests.get(url, headers=headers, timeout=10)
+            resp.raise_for_status()
+            data = resp.json()
+            if not data:
+                return None
+            return self._row_to_draft(data[0])
+        except Exception as e:
+            print(f"[err] pending 조회 실패: {e}")
+            return None
 
     # ── 내부 유틸 ────────────────────────────────────────────
-    def _load_pending(self) -> Dict[str, dict]:
-        path = self.data_dir / PENDING_FILE
-        if not path.exists():
-            return {}
-        return json.loads(path.read_text(encoding="utf-8"))
+    @staticmethod
+    def _row_to_draft(row: dict) -> Draft:
+        """DB 행을 Draft 객체로 변환."""
+        from .models import DraftStatus, Mention
 
-    def _write_pending(self, data: Dict[str, dict]) -> None:
-        path = self.data_dir / PENDING_FILE
-        path.write_text(json.dumps(data, ensure_ascii=False, indent=2, default=str),
-                        encoding="utf-8")
+        reply_to = None
+        if row.get("reply_to"):
+            mention_data = row["reply_to"]
+            reply_to = Mention(
+                id=mention_data.get("id"),
+                author_username=mention_data.get("author_username"),
+                text=mention_data.get("text"),
+                created_at=mention_data.get("created_at"),
+                parent_post_id=mention_data.get("parent_post_id"),
+                permalink=mention_data.get("permalink"),
+            )
+
+        return Draft(
+            id=row["draft_id"],
+            type=PostType(row["type"]),
+            text=row["text"],
+            created_at=datetime.fromisoformat(row["created_at"]),
+            slack_ts=row.get("slack_ts"),
+            reply_to=reply_to,
+            status=DraftStatus(row.get("status", "pending")),
+            published_post_id=row.get("published_post_id"),
+        )
 
     @staticmethod
     def _format_draft(d: Draft) -> str:
